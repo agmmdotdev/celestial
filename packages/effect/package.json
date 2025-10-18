@@ -1,0 +1,70 @@
+{
+  "name": "@celestial/effect",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "A basic Effect package",
+  "repository": {
+    "type": "git",
+    "url": "<PLACEHOLDER>"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist"
+  },
+  "scripts": {
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "effect",
+      "default": "effect"
+    },
+    "./platform": {
+      "types": "./platform.ts",
+      "import": "@effect/platform",
+      "default": "@effect/platform"
+    },
+    "./platform-node": {
+      "types": "./platform-node.ts",
+      "import": "@effect/platform-node",
+      "default": "@effect/platform-node"
+    },
+    "./experimental": {
+      "types": "./experimental.ts",
+      "import": "@effect/experimental",
+      "default": "@effect/experimental"
+    }
+  },
+  "dependencies": {
+    "@effect/experimental": "^0.56.0",
+    "@effect/platform": "^0.92.1",
+    "@effect/platform-node": "^0.98.2",
+    "effect": "^3.18.4"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.24.8",
+    "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-export-namespace-from": "^7.24.7",
+    "@babel/plugin-transform-modules-commonjs": "^7.24.8",
+    "@effect/build-utils": "^0.8.9",
+    "@effect/language-service": "latest",
+    "@effect/vitest": "^0.25.1",
+    "@types/node": "^22.5.2",
+    "babel-plugin-annotate-pure-calls": "^0.5.0",
+    "tsx": "^4.17.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
+  },
+  "types": "./index.ts",
+  "files": [
+    "index.ts",
+    "platform.ts",
+    "platform-node.ts",
+    "experimental.ts",
+    "src"
+  ]
+}

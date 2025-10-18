@@ -1,0 +1,47 @@
+{
+  "name": "@celestial/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Drizzle ORM Postgres client for monorepo apps",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "import": "./src/client.ts",
+      "default": "./src/client.ts"
+    },
+    "./schema": {
+      "types": "./src/schema.ts",
+      "import": "./src/schema.ts",
+      "default": "./src/schema.ts"
+    }
+  },
+  "types": "./index.ts",
+  "files": [
+    "index.ts",
+    "src"
+  ],
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "drizzle:generate": "drizzle-kit generate",
+    "drizzle:migrate": "drizzle-kit migrate",
+    "drizzle:push": "drizzle-kit push",
+    "drizzle:pull": "drizzle-kit pull",
+    "drizzle:check": "drizzle-kit check",
+    "drizzle:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.6",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "5.9.2"
+  }
+}

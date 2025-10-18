@@ -1,0 +1,6 @@
+{
+  "extends": "@effect/typescript-config/base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "@effect/language-service" }]
+  }
+}
