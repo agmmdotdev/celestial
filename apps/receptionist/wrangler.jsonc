@@ -4,7 +4,17 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+     "workflows": [
+    {
+      "name": "checkout-workflow",
+      "binding": "CHECKOUT_WORKFLOW",
+      "class_name": "CheckoutWorkflow"
+    }
+  ],
+  "observability": {"enabled": true},
+
   "vars": {
     "MY_VAR": "Hello from Cloudflare"
   }
 }
+
