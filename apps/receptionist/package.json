@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
-    "postinstall": "npm run cf-typegen"
+    "postinstall": "npm run cf-typegen",
+    "test": "vitest --run"
   },
   "dependencies": {
     "@celestial/effect": "workspace:*",
@@ -20,7 +21,9 @@
     "@opentelemetry/sdk-metrics": "^2.1.0",
     "@opentelemetry/sdk-trace-base": "^2.1.0",
     "@opentelemetry/sdk-trace-node": "^2.1.0",
-    "@opentelemetry/sdk-trace-web": "^2.1.0"
+    "@opentelemetry/sdk-trace-web": "^2.1.0",
+    "znv": "^0.5.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.13.10",
@@ -28,6 +31,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.1.7",
     "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.0",
     "wrangler": "^4.40.2"
   }
 }
