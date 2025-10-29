@@ -209,28 +209,8 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                     }),
             } as const;
         }),
+        dependencies: [FetchHttpClient.layer, EnvService.Default],
     }
 ) { }
 
-/**
- * Live layer for WebhookService with all dependencies configured for production use.
- * Provides HttpClient and EnvService dependencies.
- * 
- * @example
- * ```typescript
- * const program = Effect.gen(function* () {
- *   const webhook = yield* WebhookService;
- *   return yield* webhook.getPageDetails("page-id");
- * });
- * 
- * Effect.runPromise(program.pipe(Effect.provide(WebhookServiceLive)));
- * ```
- */
-export const WebhookServiceLive = WebhookService.Default.pipe(
-    Layer.provide(
-        Layer.mergeAll(
-            FetchHttpClient.layer,
-            EnvService.Default
-        )
-    )
-);
+// Live layer removed — use `WebhookService.Default` with test or prod layers as needed

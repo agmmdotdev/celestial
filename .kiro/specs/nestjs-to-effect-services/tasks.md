@@ -127,6 +127,7 @@
 
 
   - [ ] 4.5 Write unit tests for QuickRepliesService
+    - QuickRepliesService has no dependencies, use `QuickRepliesService.Default` directly
     - Test quick reply creation with valid inputs
     - Test ValidationError for invalid title/payload lengths
     - Test ValidationError for exceeding 13 quick replies
@@ -153,6 +154,7 @@
     - _Requirements: 7.2_
   
   - [ ] 5.4 Write unit tests for CouponTemplateService
+    - CouponTemplateService has no dependencies, use `CouponTemplateService.Default` directly
     - Test coupon creation with valid inputs
     - Test ValidationError for invalid title/subtitle/code
     - _Requirements: 8.1, 8.4_
@@ -182,6 +184,7 @@
     - _Requirements: 7.2_
   
   - [ ] 6.5 Write unit tests for GenericTemplateService
+    - GenericTemplateService has no dependencies, use `GenericTemplateService.Default` directly
     - Test element and template creation
     - Test ValidationError for invalid inputs
     - _Requirements: 8.1, 8.4_
@@ -207,6 +210,7 @@
     - _Requirements: 7.1, 7.4_
   
   - [ ] 7.4 Write unit tests for ReceiptTemplateService
+    - ReceiptTemplateService has no dependencies, use `ReceiptTemplateService.Default` directly
     - Test receipt creation with valid inputs
     - Test ValidationError for missing required fields
     - _Requirements: 8.1, 8.4_
@@ -356,56 +360,87 @@
     - Test error handling for Facebook API errors
     - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 11. Implement SenderActionService with Effect and HttpClient
-  - [ ] 11.1 Create SenderActionService as Effect.Service class
+- [x] 11. Implement SenderActionService with Effect and HttpClient
+
+
+
+
+  - [x] 11.1 Create SenderActionService as Effect.Service class
+
+
     - Define service with tag "app/SenderActionService"
     - Inject dependencies (HttpClient and EnvService) via yield* in the effect implementation
     - Note: Do NOT use the dependencies array - provide dependencies via Layer.provide for better testability
     - _Requirements: 1.1, 1.2, 1.4, 1.5, 11.2_
   
-  - [ ] 11.2 Implement sender action methods
+  - [x] 11.2 Implement sender action methods
+
     - Implement sendTypingOn, sendTypingOff, sendMarkSeen
     - Use HttpClient for API requests
     - _Requirements: 4.2, 4.3, 7.1, 11.2_
   
-  - [ ] 11.3 Write unit tests for SenderActionService
+  - [x] 11.3 Write unit tests for SenderActionService
+
+
     - Test sender actions with mock HttpClient
     - _Requirements: 8.1, 8.2_
 
-- [ ] 12. Implement ConversationApiService with Effect and HttpClient
-  - [ ] 12.1 Create ConversationApiService as Effect.Service class
+- [x] 12. Implement ConversationApiService with Effect and HttpClient
+
+
+
+
+  - [x] 12.1 Create ConversationApiService as Effect.Service class
+
+
     - Define service with tag "app/ConversationApiService"
     - Inject dependencies (HttpClient and EnvService) via yield* in the effect implementation
-    - Note: Do NOT use the dependencies array - provide dependencies via Layer.provide for better testability
     - _Requirements: 1.1, 1.2, 1.4, 1.5, 11.2_
   
-  - [ ] 12.2 Implement conversation API methods
+  - [x] 12.2 Implement conversation API methods
+
     - Implement methods for conversation management
     - Use HttpClient for all HTTP requests
     - _Requirements: 4.2, 4.3, 7.1, 11.2_
   
-  - [ ] 12.3 Write unit tests for ConversationApiService
+  - [x] 12.3 Write unit tests for ConversationApiService
+
+
+    - Use `ConversationApiService.DefaultWithoutDependencies.pipe(Layer.provide(...))` pattern
     - Test conversation methods with mock HttpClient
     - _Requirements: 8.1, 8.2_
 
-- [ ] 13. Migrate message event handlers to Effect
-  - [ ] 13.1 Update FacebookMessagesHandler to use Effect
+- [x] 13. Migrate message event handlers to Effect
+
+
+
+
+  - [x] 13.1 Update FacebookMessagesHandler to use Effect
+
+
     - Convert callback-based handlers to Effect-based handlers
     - Use Effect.gen for event processing
     - Keep handler registration API similar for backward compatibility
     - _Requirements: 1.5, 6.4, 9.1_
   
-  - [ ] 13.2 Update FacebookPostbacksHandler to use Effect
+  - [x] 13.2 Update FacebookPostbacksHandler to use Effect
+
+
     - Convert postback handlers to Effect-based
     - Use Effect.gen for postback processing
     - _Requirements: 1.5, 6.4, 9.1_
   
-  - [ ] 13.3 Update FacebookEchoMessagesHandler to use Effect
+  - [x] 13.3 Update FacebookEchoMessagesHandler to use Effect
+
+
     - Convert echo message handlers to Effect-based
     - Use Effect.gen for echo processing
     - _Requirements: 1.5, 6.4, 9.1_
   
-  - [ ] 13.4 Write unit tests for event handlers
+  - [x] 13.4 Write unit tests for event handlers
+
+
+    - Use `DefaultWithoutDependencies` pattern if handlers have dependencies
     - Test message handlers with mock events
     - Test postback handlers
     - Test echo message handlers
@@ -419,9 +454,9 @@
     - _Requirements: 2.5, 10.1, 10.2_
   
   - [ ] 14.2 Create test layer with mocks
-    - Create TestLayer with mock implementations
-    - Provide mock HttpClient, EnvService
-    - Document how to use test layer in tests
+    - Create TestLayer with mock implementations using `Service.DefaultWithoutDependencies`
+    - Provide mock HttpClient, EnvService using `Layer.provide`
+    - Document how to use `DefaultWithoutDependencies` pattern in tests
     - _Requirements: 8.1, 8.2, 8.3, 12.3_
   
   - [ ] 14.3 Document layer composition
@@ -482,6 +517,7 @@
   
   - [ ] 17.3 Document testing patterns
     - Create testing guide with examples
-    - Show how to create mock layers
+    - Show how to create mock layers using `DefaultWithoutDependencies`
+    - Document the difference between `Service.Default` and `Service.DefaultWithoutDependencies`
     - Document test utilities
     - _Requirements: 8.3, 12.2_

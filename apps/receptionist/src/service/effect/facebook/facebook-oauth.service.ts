@@ -203,6 +203,7 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
                     }),
             } as const;
         }),
+        dependencies: [FetchHttpClient.layer, EnvService.Default],
     }
 ) { }
 
@@ -220,11 +221,4 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
  * Effect.runPromise(program.pipe(Effect.provide(FacebookOAuthServiceLive)));
  * ```
  */
-export const FacebookOAuthServiceLive = FacebookOAuthService.Default.pipe(
-    Layer.provide(
-        Layer.mergeAll(
-            FetchHttpClient.layer,
-            EnvService.Default
-        )
-    )
-);
+// Live layer removed — use `FacebookOAuthService.Default` with test or prod layers as needed

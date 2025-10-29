@@ -147,63 +147,6 @@ const makeRequest = Effect.gen(function* () {
 - No need for custom error mapping from Axios
 ```
 
-#### Dependency Management Pattern
-
-**IMPORTANT: Do NOT use the `dependencies` array in Effect.Service definitions**
-
-When defining Effect services, avoid using the `dependencies` configuration option. Instead:
-
-1. **Inject dependencies via `yield*`** in the effect implementation
-2. **Provide dependencies via `Layer.provide`** when creating the service layer
-3. **Export a "Live" layer** for production use with all dependencies configured
-
-**Why this pattern?**
-- **Better testability**: Tests can easily provide mock implementations without fighting baked-in layers
-- **Explicit dependency management**: Dependencies are visible where they're provided, not hidden in the service definition
-- **Flexibility**: Different environments (test, dev, prod) can provide different implementations
-
-**Example:**
-
-```typescript
-// ❌ DON'T: Using dependencies array (hard to test)
-export class MyService extends Effect.Service<MyService>()("app/MyService", {
-  effect: Effect.gen(function* () {
-    const httpClient = yield* HttpClient.HttpClient;
-    // ... implementation
-  }),
-  dependencies: [FetchHttpClient.layer, EnvService.Default], // Hard to override in tests!
-}) {}
-
-// ✅ DO: No dependencies array, provide via layers
-export class MyService extends Effect.Service<MyService>()("app/MyService", {
-  effect: Effect.gen(function* () {
-    const httpClient = yield* HttpClient.HttpClient;
-    const envService = yield* EnvService;
-    // ... implementation
-  }),
-}) {}
-
-// Export a live layer for production
-export const MyServiceLive = MyService.Default.pipe(
-  Layer.provide(
-    Layer.mergeAll(
-      FetchHttpClient.layer,
-      EnvService.Default
-    )
-  )
-);
-
-// In tests, easily provide mocks
-const TestLayer = MyService.Default.pipe(
-  Layer.provide(
-    Layer.mergeAll(
-      MockHttpClient,  // Easy to mock!
-      MockEnvService
-    )
-  )
-);
-```
-
 ### 2. Facebook Graph API Services
 
 #### ButtonTemplateService (Effect)
@@ -702,40 +645,71 @@ describe("ButtonTemplateService", () => {
 
 ### Integration Testing with Mocks
 
+Services should declare their dependencies using the `dependencies` array. In tests, use `Layer.provideMerge` to provide mock implementations:
+
 ```typescript
 import { Effect, Layer } from "effect";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import { HttpClient, FetchHttpClient } from "@effect/platform";
 
-// Create mock HTTP client
-const HttpClientMock = Layer.succeed(
-  HttpClient.HttpClient,
-  HttpClient.HttpClient.of({
-    execute: (request: HttpClientRequest.HttpClientRequest) =>
-      Effect.succeed(
-        HttpClientResponse.fromWeb(
-          request,
-          new Response(JSON.stringify({ data: "mock response" }))
-        )
-      ),
-    // ... other methods
-  })
-);
+// Service with dependencies declared
+export class WebhookService extends Effect.Service<WebhookService>()(
+  "app/WebhookService",
+  {
+    effect: Effect.gen(function* () {
+      const httpClient = yield* HttpClient.HttpClient;
+      const envService = yield* EnvService;
+      // ... implementation
+    }),
+    dependencies: [FetchHttpClient.layer, EnvService.Default],
+  }
+) {}
+
+// Create mock HTTP client helper
+const createMockHttpClient = (mockResponseFactory: () => { json: Effect.Effect<any, never, never> }) =>
+  Layer.succeed(
+    HttpClient.HttpClient,
+    HttpClient.HttpClient.of({
+      get: (_url: string) => Effect.succeed(mockResponseFactory()),
+      post: (_url: string, _options?: any) => Effect.succeed(mockResponseFactory()),
+      // ... other methods as needed
+    } as any)
+  );
+
+// Create mock response
+const createMockPageDetailsResponse = () => ({
+  json: Effect.succeed({
+    id: "mock-page-id",
+    name: "Mock Page Name",
+    category: "Brand",
+  }),
+});
 
 // Create mock Env service
-const EnvServiceMock = Layer.succeed(EnvService, {
+const MockEnvService = Layer.succeed(EnvService, {
   getUserAccessToken: () => Effect.succeed("mock-token"),
   // ... other methods
-});
+} as any);
 
-// Test with mocks
+// Create mock HTTP client layer
+const MockHttpClient = createMockHttpClient(createMockPageDetailsResponse);
+
+// Test layer with mocks
+const TestLayer = WebhookService.DefaultWithoutDependencies.pipe(
+  Layer.provide(Layer.mergeAll(MockHttpClient, MockEnvService))
+);
+
 const program = Effect.gen(function* () {
-  const messaging = yield* MessagingService;
-  return yield* messaging.sendTextMessage("page-id", "user-id", "Hello");
-});
+  const webhook = yield* WebhookService;
+  return yield* webhook.getPageDetails("test-page-id");
+}).pipe(Effect.provide(TestLayer));
 
-const testLayer = Layer.mergeAll(HttpClientMock, EnvServiceMock);
-const result = await Effect.runPromise(program.pipe(Effect.provide(testLayer)));
+const result = await Effect.runPromise(program);
 ```
+
+**Key Pattern:** 
+1. Declare dependencies in the service using the `dependencies` array
+2. In tests, use `Service.DefaultWithoutDependencies.pipe(Layer.provide(...))` to provide mock dependencies
+3. `DefaultWithoutDependencies` gives you the service layer without its declared dependencies, allowing you to provide your own mocks
 
 ## Migration Strategy
 

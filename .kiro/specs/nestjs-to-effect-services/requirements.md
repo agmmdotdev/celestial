@@ -26,7 +26,7 @@ This document outlines the requirements for migrating the receptionist applicati
 1. WHEN converting a NestJS service, THE Receptionist Application SHALL create an Effect service class that extends `Effect.Service<ServiceName>()`
 2. WHEN defining a service identifier, THE Receptionist Application SHALL use the pattern `"app/ServiceName"` as the service tag
 3. WHEN a service has no external dependencies, THE Receptionist Application SHALL provide a default implementation using the `effect` property with `Effect.succeed` or `Effect.gen`
-4. WHEN a service depends on other services, THE Receptionist Application SHALL inject dependencies via `yield*` within the effect implementation and provide them via `Layer.provide` for better testability
+4. WHEN a service depends on other services, THE Receptionist Application SHALL declare dependencies using the `dependencies` array in the service configuration
 5. WHEN implementing service methods, THE Receptionist Application SHALL return `Effect.Effect<Success, Error, Requirements>` types instead of Promises or synchronous values
 
 ### Requirement 2: Dependency Injection Transformation
@@ -107,8 +107,8 @@ This document outlines the requirements for migrating the receptionist applicati
 
 #### Acceptance Criteria
 
-1. WHEN testing a service, THE Receptionist Application SHALL support providing mock implementations via `Effect.provideService`
-2. WHEN a service has dependencies, THE Receptionist Application SHALL allow test layers to replace dependencies
+1. WHEN testing a service with dependencies, THE Receptionist Application SHALL use `Service.DefaultWithoutDependencies.pipe(Layer.provide(...))` to provide mock implementations
+2. WHEN a service has dependencies declared in the `dependencies` array, THE Receptionist Application SHALL use `DefaultWithoutDependencies` to get the service layer without its dependencies
 3. WHEN creating test fixtures, THE Receptionist Application SHALL provide example mock implementations for common services
 4. WHEN running tests in isolation, THE Receptionist Application SHALL use `Effect.runPromise` or `Effect.runSync` only in test runners at the boundary
 5. WHEN asserting on errors, THE Receptionist Application SHALL use `Effect.either` or `Effect.exit` to capture error values

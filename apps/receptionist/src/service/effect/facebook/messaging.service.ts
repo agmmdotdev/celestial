@@ -156,7 +156,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
       /**
        * Core method to send any type of message to Facebook Graph API.
-       * 
+       *
        * @param pageId - The Facebook Page ID sending the message
        * @param messageRequest - The complete message request object
        * @param pageAccessToken - Optional page access token
@@ -168,24 +168,27 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         pageAccessToken?: string
       ) =>
         Effect.gen(function* () {
-          const accessToken = pageAccessToken ?? (yield* envService.getUserAccessToken());
+          const accessToken =
+            pageAccessToken ?? (yield* envService.getUserAccessToken());
 
           const url = `${FacebookGraphApiUrl}/${pageId}/messages?access_token=${accessToken}`;
 
           const bodyData = yield* HttpBody.json(messageRequest);
 
-          const response = yield* httpClient.post(url, {
-            body: bodyData,
-          }).pipe(
-            Effect.catchAll((error) =>
-              Effect.fail(
-                new FacebookApiError({
-                  code: 0,
-                  message: `Failed to send message: ${error}`,
-                })
+          const response = yield* httpClient
+            .post(url, {
+              body: bodyData,
+            })
+            .pipe(
+              Effect.catchAll((error) =>
+                Effect.fail(
+                  new FacebookApiError({
+                    code: 0,
+                    message: `Failed to send message: ${error}`,
+                  })
+                )
               )
-            )
-          );
+            );
 
           const data = yield* response.json.pipe(
             Effect.catchAll((error) =>
@@ -204,14 +207,14 @@ export class MessagingService extends Effect.Service<MessagingService>()(
       return {
         /**
          * Sends a basic text message to a recipient.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The text message to send
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token (uses user access token if not provided)
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendTextMessage(
@@ -240,7 +243,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a button template message with up to 3 buttons.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The text to display above the buttons (max 640 characters)
@@ -248,7 +251,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const button = yield* buttonTemplateService.createWebUrlButton("Visit", "https://example.com");
@@ -269,10 +272,11 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const payload = yield* buttonTemplateService.createButtonTemplatePayload(
-              text,
-              buttons
-            );
+            const payload =
+              yield* buttonTemplateService.createButtonTemplatePayload(
+                text,
+                buttons
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -291,7 +295,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a generic template message with pre-built payload.
          * Note: GenericTemplateService will be implemented in a future task.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param genericPayload - The complete generic template payload
@@ -324,7 +328,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a coupon template message with pre-built payload.
          * Note: CouponTemplateService will be implemented in a future task.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param couponPayload - The complete coupon template payload
@@ -357,7 +361,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a receipt template message for order confirmations.
          * Note: ReceiptTemplateService will be implemented in a future task.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param receiptPayload - The receipt template payload
@@ -389,7 +393,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a message with quick replies.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The message text
@@ -397,7 +401,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const quickReply = yield* quickRepliesService.createTextQuickReply("Yes", "YES");
@@ -418,10 +422,11 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const quickReplyMessage = yield* quickRepliesService.createQuickReplyMessage(
-              text,
-              quickReplies
-            );
+            const quickReplyMessage =
+              yield* quickRepliesService.createQuickReplyMessage(
+                text,
+                quickReplies
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -434,7 +439,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a yes/no quick reply message.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The question text
@@ -443,7 +448,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendYesNoQuickReplyMessage(
@@ -463,11 +468,12 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const quickReplyMessage = yield* quickRepliesService.createYesNoQuickReplyMessage(
-              text,
-              yesPayload,
-              noPayload
-            );
+            const quickReplyMessage =
+              yield* quickRepliesService.createYesNoQuickReplyMessage(
+                text,
+                yesPayload,
+                noPayload
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -480,7 +486,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a multiple choice quick reply message.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The question text
@@ -488,7 +494,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendMultipleChoiceQuickReplyMessage(
@@ -515,10 +521,11 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const quickReplyMessage = yield* quickRepliesService.createMultipleChoiceQuickReplyMessage(
-              text,
-              choices
-            );
+            const quickReplyMessage =
+              yield* quickRepliesService.createMultipleChoiceQuickReplyMessage(
+                text,
+                choices
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -531,7 +538,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a rating quick reply message (1-5 stars).
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The message text
@@ -539,7 +546,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendRatingQuickReplyMessage(
@@ -558,10 +565,11 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const quickReplyMessage = yield* quickRepliesService.createRatingQuickReplyMessage(
-              text,
-              useStarEmojis
-            );
+            const quickReplyMessage =
+              yield* quickRepliesService.createRatingQuickReplyMessage(
+                text,
+                useStarEmojis
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -574,7 +582,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a contact quick reply message for collecting contact information.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param text - The message text
@@ -584,7 +592,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendContactQuickReplyMessage(
@@ -612,12 +620,13 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
-            const quickReplyMessage = yield* quickRepliesService.createContactQuickReplyMessage(
-              text,
-              includePhone,
-              includeEmail,
-              additionalOptions
-            );
+            const quickReplyMessage =
+              yield* quickRepliesService.createContactQuickReplyMessage(
+                text,
+                includePhone,
+                includeEmail,
+                additionalOptions
+              );
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -630,7 +639,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a message with a media attachment (image, video, audio, or file).
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param attachmentType - The type of attachment
@@ -639,7 +648,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendMediaMessage(
@@ -679,14 +688,14 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a message with multiple image attachments (up to 30 images).
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param imageUrls - Array of image URLs to send (max 30)
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendMultipleImagesMessage(
@@ -737,7 +746,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a message using a previously uploaded attachment ID.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param attachmentType - The type of attachment
@@ -745,7 +754,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendMessageWithAttachmentId(
@@ -784,7 +793,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a carousel generic template message with multiple elements.
          * Note: This is a placeholder until GenericTemplateService is implemented.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param elements - Array of generic template elements (max 10)
@@ -792,7 +801,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendCarouselGenericTemplateMessage(
@@ -838,7 +847,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a product showcase carousel using generic template.
          * Note: This is a placeholder until GenericTemplateService is implemented.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param products - Array of product information
@@ -846,7 +855,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendProductCarouselMessage(
@@ -926,7 +935,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends a location carousel using generic template.
          * Note: This is a placeholder until GenericTemplateService is implemented.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param locations - Array of location information
@@ -934,7 +943,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendLocationCarouselMessage(
@@ -1001,7 +1010,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Sends an article carousel using generic template.
          * Note: This is a placeholder until GenericTemplateService is implemented.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param articles - Array of article information
@@ -1009,7 +1018,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
          * @param messagingType - The type of message (default: RESPONSE)
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendArticleCarouselMessage(
@@ -1077,14 +1086,14 @@ export class MessagingService extends Effect.Service<MessagingService>()(
 
         /**
          * Sends a tagged message outside the standard messaging window.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param recipientId - The Page-scoped ID (PSID) of the recipient
          * @param message - The message content
          * @param tag - The message tag indicating the use case
          * @param pageAccessToken - Optional page access token
          * @returns Effect containing SendMessageResponse or FacebookApiError
-         * 
+         *
          * @example
          * ```typescript
          * const response = yield* messaging.sendTaggedMessage(
@@ -1101,26 +1110,25 @@ export class MessagingService extends Effect.Service<MessagingService>()(
           message: MessageContent,
           tag: MessageTag,
           pageAccessToken?: string
-        ) =>
-          Effect.gen(function* () {
-            const messageRequest: SendMessageRequest = {
-              recipient: { id: recipientId },
-              messaging_type: MessagingType.MESSAGE_TAG,
-              message,
-              tag,
-            };
+        ) => {
+          const messageRequest: SendMessageRequest = {
+            recipient: { id: recipientId },
+            messaging_type: MessagingType.MESSAGE_TAG,
+            message,
+            tag,
+          };
 
-            return yield* sendMessage(pageId, messageRequest, pageAccessToken);
-          }),
+          return sendMessage(pageId, messageRequest, pageAccessToken);
+        },
 
         /**
          * Validates if a message can be sent within the standard messaging window.
          * Note: This is a helper method - actual validation should be done on your backend
          * based on the last interaction timestamp.
-         * 
+         *
          * @param lastInteractionTime - The timestamp of the last user interaction
          * @returns Effect containing boolean indicating if within 24-hour window
-         * 
+         *
          * @example
          * ```typescript
          * const isWithinWindow = yield* messaging.isWithinStandardMessagingWindow(
@@ -1131,7 +1139,8 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         isWithinStandardMessagingWindow: (lastInteractionTime: Date) =>
           Effect.sync(() => {
             const now = new Date();
-            const timeDifference = now.getTime() - lastInteractionTime.getTime();
+            const timeDifference =
+              now.getTime() - lastInteractionTime.getTime();
             const twentyFourHoursInMs = 24 * 60 * 60 * 1000;
 
             return timeDifference <= twentyFourHoursInMs;
@@ -1140,7 +1149,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         /**
          * Core method to send any type of message to Facebook Graph API.
          * Exposed for advanced use cases.
-         * 
+         *
          * @param pageId - The Facebook Page ID sending the message
          * @param messageRequest - The complete message request object
          * @param pageAccessToken - Optional page access token
@@ -1149,20 +1158,13 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         sendMessage,
       } as const;
     }),
-  }
-) {}
-
-/**
- * Default MessagingService layer with all dependencies
- * Use this in production code
- */
-export const MessagingServiceLive = MessagingService.Default.pipe(
-  Layer.provide(
-    Layer.mergeAll(
+    dependencies: [
       FetchHttpClient.layer,
       EnvService.Default,
       ButtonTemplateService.Default,
-      QuickRepliesService.Default
-    )
-  )
-);
+      QuickRepliesService.Default,
+    ],
+  }
+) {}
+
+// Live layer removed — use `MessagingService.Default` with test or prod layers as needed

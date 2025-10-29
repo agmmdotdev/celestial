@@ -1,188 +1,167 @@
 import { Effect, Layer } from "@celestial/effect";
-import { HttpClient } from "@effect/platform";
 import { describe, it, expect } from "vitest";
-import { MessagingService, MessagingType, AttachmentType } from "./messaging.service.js";
-import { EnvService } from "../env.service.js";
+import {
+  MessagingService,
+  MessagingType,
+  AttachmentType,
+} from "./messaging.service.js";
 import { ButtonTemplateService } from "./button-template.service.js";
 import { QuickRepliesService } from "./quick-replies.service.js";
+import { createMockHttpClient, MockEnvService } from "./test-utils.js";
 
 // Create a mock response with json as an Effect
 const createMockResponse = () => ({
-    json: Effect.succeed({
-        recipient_id: "mock-recipient-id",
-        message_id: "mock-message-id",
-    }),
+  json: Effect.succeed({
+    recipient_id: "mock-recipient-id",
+    message_id: "mock-message-id",
+  }),
 });
 
 // Mock HttpClient layer
-const MockHttpClient = Layer.succeed(
-    HttpClient.HttpClient,
-    HttpClient.HttpClient.of({
-        execute: () => Effect.succeed({} as any),
-        get: () => Effect.succeed(createMockResponse() as any),
-        head: () => Effect.succeed(createMockResponse() as any),
-        post: () => Effect.succeed(createMockResponse() as any),
-        patch: () => Effect.succeed(createMockResponse() as any),
-        put: () => Effect.succeed(createMockResponse() as any),
-        del: () => Effect.succeed(createMockResponse() as any),
-        options: () => Effect.succeed(createMockResponse() as any),
-    } as any)
+const MockHttpClient = createMockHttpClient(createMockResponse);
+
+// All dependencies that MessagingService needs
+const MessagingServiceDeps = Layer.mergeAll(
+  MockHttpClient,
+  MockEnvService,
+  ButtonTemplateService.Default,
+  QuickRepliesService.Default
 );
 
-// Mock EnvService layer
-const MockEnvService = Layer.succeed(
-    EnvService,
-    {
-        getDatabaseUrl: () => Effect.succeed("mock-db-url"),
-        getPort: () => Effect.succeed(3000),
-        getCookieSecret: () => Effect.succeed("mock-secret"),
-        getSuperadminUsername: () => Effect.succeed("admin"),
-        getSuperadminPassword: () => Effect.succeed("password"),
-        getGeminiApiKey: () => Effect.succeed("mock-api-key"),
-        getMessengerVerifyToken: () => Effect.succeed("mock-verify-token"),
-        getMessengerAppSecret: () => Effect.succeed("mock-app-secret"),
-        getUserAccessToken: () => Effect.succeed("mock-access-token"),
-        getChatBotAppId: () => Effect.succeed("mock-app-id"),
-        getChatBotAppSecret: () => Effect.succeed("mock-bot-secret"),
-        getChatBotAppAccessToken: () => Effect.succeed("mock-bot-token"),
-    } as any
+// Services that need to be in test context for direct use (e.g., yield* ButtonTemplateService)
+const TestContextServices = Layer.mergeAll(
+  ButtonTemplateService.Default,
+  QuickRepliesService.Default
 );
 
-// Now that MessagingService doesn't have baked-in dependencies,
-// we can provide our mocks directly
-const TestLayer = MessagingService.Default.pipe(
-    Layer.provide(
-        Layer.mergeAll(
-            MockHttpClient,
-            MockEnvService,
-            ButtonTemplateService.Default,
-            QuickRepliesService.Default
-        )
-    ),
-    Layer.merge(ButtonTemplateService.Default),
-    Layer.merge(QuickRepliesService.Default)
+// Test layer - provide deps to MessagingService, then merge services back into context
+const TestLayer = Layer.mergeAll(
+  MessagingService.DefaultWithoutDependencies.pipe(
+    Layer.provide(MessagingServiceDeps)
+  ),
+  TestContextServices
 );
 
 describe("MessagingService", () => {
-    describe("sendTextMessage", () => {
-        it("should send a text message successfully", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                return yield* messaging.sendTextMessage(
-                    "page-id",
-                    "recipient-id",
-                    "Hello, World!"
-                );
-            }).pipe(Effect.provide(TestLayer));
+  describe("sendTextMessage", () => {
+    it("should send a text message successfully", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        return yield* messaging.sendTextMessage(
+          "page-id",
+          "recipient-id",
+          "Hello, World!"
+        );
+      }).pipe(Effect.provide(TestLayer));
 
-            const result = await Effect.runPromise(program);
-            expect(result.recipient_id).toBe("mock-recipient-id");
-            expect(result.message_id).toBe("mock-message-id");
-        });
-
-        it("should send a text message with custom messaging type", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                return yield* messaging.sendTextMessage(
-                    "page-id",
-                    "recipient-id",
-                    "Update message",
-                    MessagingType.UPDATE
-                );
-            }).pipe(Effect.provide(TestLayer));
-
-            const result = await Effect.runPromise(program);
-            expect(result.recipient_id).toBe("mock-recipient-id");
-        });
+      const result = await Effect.runPromise(program);
+      expect(result.recipient_id).toBe("mock-recipient-id");
+      expect(result.message_id).toBe("mock-message-id");
     });
 
-    describe("sendButtonTemplateMessage", () => {
-        it("should send a button template message successfully", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                const buttonService = yield* ButtonTemplateService;
+    it("should send a text message with custom messaging type", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        return yield* messaging.sendTextMessage(
+          "page-id",
+          "recipient-id",
+          "Update message",
+          MessagingType.UPDATE
+        );
+      }).pipe(Effect.provide(TestLayer));
 
-                const button = yield* buttonService.createWebUrlButton(
-                    "Visit",
-                    "https://example.com"
-                );
+      const result = await Effect.runPromise(program);
+      expect(result.recipient_id).toBe("mock-recipient-id");
+    });
+  });
 
-                return yield* messaging.sendButtonTemplateMessage(
-                    "page-id",
-                    "recipient-id",
-                    "Choose an option",
-                    [button]
-                );
-            }).pipe(Effect.provide(TestLayer));
+  describe("sendButtonTemplateMessage", () => {
+    it("should send a button template message successfully", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        const buttonService = yield* ButtonTemplateService;
 
-            const result = await Effect.runPromise(program);
-            expect(result.recipient_id).toBe("mock-recipient-id");
-            expect(result.message_id).toBe("mock-message-id");
-        });
+        const button = yield* buttonService.createWebUrlButton(
+          "Visit",
+          "https://example.com"
+        );
+
+        return yield* messaging.sendButtonTemplateMessage(
+          "page-id",
+          "recipient-id",
+          "Choose an option",
+          [button]
+        );
+      }).pipe(Effect.provide(TestLayer));
+
+      const result = await Effect.runPromise(program);
+      expect(result.recipient_id).toBe("mock-recipient-id");
+      expect(result.message_id).toBe("mock-message-id");
+    });
+  });
+
+  describe("sendQuickReplyMessage", () => {
+    it("should send a quick reply message successfully", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        const quickRepliesService = yield* QuickRepliesService;
+
+        const quickReply = yield* quickRepliesService.createTextQuickReply(
+          "Yes",
+          "YES"
+        );
+
+        return yield* messaging.sendQuickReplyMessage(
+          "page-id",
+          "recipient-id",
+          "Do you agree?",
+          [quickReply]
+        );
+      }).pipe(Effect.provide(TestLayer));
+
+      const result = await Effect.runPromise(program);
+      expect(result.recipient_id).toBe("mock-recipient-id");
+    });
+  });
+
+  describe("sendMediaMessage", () => {
+    it("should send an image message successfully", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        return yield* messaging.sendMediaMessage(
+          "page-id",
+          "recipient-id",
+          AttachmentType.IMAGE,
+          "https://example.com/image.jpg"
+        );
+      }).pipe(Effect.provide(TestLayer));
+
+      const result = await Effect.runPromise(program);
+      expect(result.recipient_id).toBe("mock-recipient-id");
+    });
+  });
+
+  describe("isWithinStandardMessagingWindow", () => {
+    it("should return true for recent interaction", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        const recentTime = new Date(Date.now() - 1000 * 60 * 60); // 1 hour ago
+        return yield* messaging.isWithinStandardMessagingWindow(recentTime);
+      }).pipe(Effect.provide(TestLayer));
+
+      const result = await Effect.runPromise(program);
+      expect(result).toBe(true);
     });
 
-    describe("sendQuickReplyMessage", () => {
-        it("should send a quick reply message successfully", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                const quickRepliesService = yield* QuickRepliesService;
+    it("should return false for old interaction", async () => {
+      const program = Effect.gen(function* () {
+        const messaging = yield* MessagingService;
+        const oldTime = new Date(Date.now() - 1000 * 60 * 60 * 25); // 25 hours ago
+        return yield* messaging.isWithinStandardMessagingWindow(oldTime);
+      }).pipe(Effect.provide(TestLayer));
 
-                const quickReply = yield* quickRepliesService.createTextQuickReply(
-                    "Yes",
-                    "YES"
-                );
-
-                return yield* messaging.sendQuickReplyMessage(
-                    "page-id",
-                    "recipient-id",
-                    "Do you agree?",
-                    [quickReply]
-                );
-            }).pipe(Effect.provide(TestLayer));
-
-            const result = await Effect.runPromise(program);
-            expect(result.recipient_id).toBe("mock-recipient-id");
-        });
+      const result = await Effect.runPromise(program);
+      expect(result).toBe(false);
     });
-
-    describe("sendMediaMessage", () => {
-        it("should send an image message successfully", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                return yield* messaging.sendMediaMessage(
-                    "page-id",
-                    "recipient-id",
-                    AttachmentType.IMAGE,
-                    "https://example.com/image.jpg"
-                );
-            }).pipe(Effect.provide(TestLayer));
-
-            const result = await Effect.runPromise(program);
-            expect(result.recipient_id).toBe("mock-recipient-id");
-        });
-    });
-
-    describe("isWithinStandardMessagingWindow", () => {
-        it("should return true for recent interaction", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                const recentTime = new Date(Date.now() - 1000 * 60 * 60); // 1 hour ago
-                return yield* messaging.isWithinStandardMessagingWindow(recentTime);
-            }).pipe(Effect.provide(TestLayer));
-
-            const result = await Effect.runPromise(program);
-            expect(result).toBe(true);
-        });
-
-        it("should return false for old interaction", async () => {
-            const program = Effect.gen(function* () {
-                const messaging = yield* MessagingService;
-                const oldTime = new Date(Date.now() - 1000 * 60 * 60 * 25); // 25 hours ago
-                return yield* messaging.isWithinStandardMessagingWindow(oldTime);
-            }).pipe(Effect.provide(TestLayer));
-
-            const result = await Effect.runPromise(program);
-            expect(result).toBe(false);
-        });
-    });
+  });
 });
