@@ -1,16 +1,20 @@
-import { Effect } from "@celestial/effect";
+import { Effect, Layer, ConfigProvider } from "@celestial/effect";
 import { describe, it, expect } from "vitest";
 import { EnvService } from "./env.service.js";
-import { ConfigError } from "../errors/index.js";
+
+const TestLayer = EnvService.DefaultWithoutDependencies.pipe(
+  Layer.provide(
+    Layer.succeed(ConfigProvider.ConfigProvider, ConfigProvider.fromEnv())
+  )
+);
 
 describe("EnvService", () => {
-
   it("should successfully parse valid environment variables", async () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       const dbUrl = yield* envService.getDatabaseUrl();
       return dbUrl;
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("postgresql://user:pass@localhost:5432/testdb");
@@ -21,7 +25,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return envService;
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(Effect.either(program));
     expect(result._tag).toBe("Right");
@@ -30,8 +34,10 @@ describe("EnvService", () => {
   it("should return correct database URL", async () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
-      return yield* envService.getDatabaseUrl();
-    }).pipe(Effect.provide(EnvService.Default));
+      return yield* envService
+        .getDatabaseUrl()
+        .pipe(Effect.tap((result) => console.log("database URL", result)));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("postgresql://user:pass@localhost:5432/testdb");
@@ -41,7 +47,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getPort();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe(3000);
@@ -51,7 +57,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getCookieSecret();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-cookie-secret-16chars");
@@ -61,7 +67,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getGeminiApiKey();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-gemini-key");
@@ -71,7 +77,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getMessengerVerifyToken();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-verify-token");
@@ -81,7 +87,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getMessengerAppSecret();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-app-secret");
@@ -91,7 +97,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getUserAccessToken();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-user-token");
@@ -101,7 +107,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getChatBotAppId();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-app-id");
@@ -111,7 +117,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getChatBotAppSecret();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-bot-secret");
@@ -121,7 +127,7 @@ describe("EnvService", () => {
     const program = Effect.gen(function* () {
       const envService = yield* EnvService;
       return yield* envService.getChatBotAppAccessToken();
-    }).pipe(Effect.provide(EnvService.Default));
+    }).pipe(Effect.provide(TestLayer));
 
     const result = await Effect.runPromise(program);
     expect(result).toBe("test-bot-token");

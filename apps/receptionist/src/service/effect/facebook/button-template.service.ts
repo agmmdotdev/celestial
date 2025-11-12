@@ -1,4 +1,4 @@
-import { Effect } from "@celestial/effect";
+import { Effect, Schema, ParseResult, pipe } from "@celestial/effect";
 import { ValidationError } from "../../errors/index.js";
 
 /**
@@ -93,11 +93,62 @@ export interface ButtonTemplatePayload {
 }
 
 /**
+ * Validation schemas using Effect Schema
+ */
+const ButtonTitleSchema = Schema.String.pipe(Schema.maxLength(20));
+
+const ButtonPayloadSchema = Schema.String.pipe(Schema.maxLength(1000));
+
+const PhoneNumberSchema = Schema.String.pipe(Schema.pattern(/^\+/));
+
+const ButtonTemplateTextMinSchema = Schema.String.pipe(Schema.minLength(1));
+
+const ButtonTemplateTextMaxSchema = Schema.String.pipe(Schema.maxLength(640));
+const ButtonArrayMinSchema = Schema.Array(Schema.Unknown).pipe(
+  Schema.minItems(1, {
+    message: () => "At least one button is required",
+  })
+);
+
+const ButtonArrayMaxSchema = Schema.Array(Schema.Unknown).pipe(
+  Schema.maxItems(3, {
+    message: () => "Maximum of 3 buttons allowed per button template",
+  })
+);
+
+/**
+ * Helper function to convert ParseError to ValidationError
+ */
+const parseErrorToValidationError = (
+  _parseError: ParseResult.ParseError,
+  field: string,
+  defaultMessage: string
+): ValidationError => {
+  return new ValidationError({ field, message: defaultMessage });
+};
+
+/**
+ * Helper function to validate a value against a schema and map errors
+ */
+const validateWithSchema = <A>(
+  schema: Schema.Schema<A>,
+  value: unknown,
+  field: string,
+  defaultMessage: string
+): Effect.Effect<A, ValidationError> =>
+  pipe(
+    Schema.decodeUnknown(schema)(value),
+    Effect.mapError((parseError) =>
+      parseErrorToValidationError(parseError, field, defaultMessage)
+    )
+  );
+
+/**
  * Effect-based Button Template Service
- * 
+ *
  * This service provides methods for creating Facebook Messenger button templates
  * with validation and type safety through Effect.
- * 
+ *
  * @example
  * ```typescript
  * const program = Effect.gen(function* () {
@@ -114,12 +165,12 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
     effect: Effect.succeed({
       /**
        * Create a web URL button that opens a URL in a webview or browser
-       * 
+       *
        * @param title - Button title (max 20 characters)
        * @param url - URL to open
        * @param options - Optional webview configuration
        * @returns Effect containing the WebUrlButton or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createWebUrlButton("Visit Site", "https://example.com");
@@ -135,27 +186,28 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
           webview_share_button?: "hide";
         }
       ) =>
-        title.length > 20
-          ? Effect.fail(
-              new ValidationError({
-                field: "title",
-                message: "Button title must be 20 characters or less",
-              })
-            )
-          : Effect.succeed({
-              type: ButtonType.WEB_URL,
-              title,
-              url,
-              ...options,
-            } as WebUrlButton),
+        Effect.gen(function* () {
+          const validatedTitle = yield* validateWithSchema(
+            ButtonTitleSchema,
+            title,
+            "title",
+            "Button title must be 20 characters or less"
+          );
+          return {
+            type: ButtonType.WEB_URL,
+            title: validatedTitle,
+            url,
+            ...options,
+          } as WebUrlButton;
+        }),
 
       /**
        * Create a postback button that sends a payload back to the webhook
-       * 
+       *
        * @param title - Button title (max 20 characters)
        * @param payload - Payload to send (max 1000 characters)
        * @returns Effect containing the PostbackButton or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createPostbackButton("Get Started", "GET_STARTED");
@@ -163,36 +215,32 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
        */
       createPostbackButton: (title: string, payload: string) =>
         Effect.gen(function* () {
-          if (title.length > 20) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "title",
-                message: "Button title must be 20 characters or less",
-              })
-            );
-          }
-          if (payload.length > 1000) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "payload",
-                message: "Button payload must be 1000 characters or less",
-              })
-            );
-          }
+          const validatedTitle = yield* validateWithSchema(
+            ButtonTitleSchema,
+            title,
+            "title",
+            "Button title must be 20 characters or less"
+          );
+          const validatedPayload = yield* validateWithSchema(
+            ButtonPayloadSchema,
+            payload,
+            "payload",
+            "Button payload must be 1000 characters or less"
+          );
           return {
             type: ButtonType.POSTBACK,
-            title,
-            payload,
+            title: validatedTitle,
+            payload: validatedPayload,
           } as PostbackButton;
         }),
 
       /**
        * Create a phone number button that initiates a phone call
-       * 
+       *
        * @param title - Button title (max 20 characters)
        * @param phoneNumber - Phone number with country code (must start with +)
        * @returns Effect containing the PhoneNumberButton or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createPhoneNumberButton("Call Us", "+1234567890");
@@ -200,35 +248,31 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
        */
       createPhoneNumberButton: (title: string, phoneNumber: string) =>
         Effect.gen(function* () {
-          if (title.length > 20) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "title",
-                message: "Button title must be 20 characters or less",
-              })
-            );
-          }
-          if (!phoneNumber.startsWith("+")) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "phoneNumber",
-                message: "Phone number must start with + and include country code",
-              })
-            );
-          }
+          const validatedTitle = yield* validateWithSchema(
+            ButtonTitleSchema,
+            title,
+            "title",
+            "Button title must be 20 characters or less"
+          );
+          const validatedPhoneNumber = yield* validateWithSchema(
+            PhoneNumberSchema,
+            phoneNumber,
+            "phoneNumber",
+            "Phone number must start with + and include country code"
+          );
           return {
             type: ButtonType.PHONE_NUMBER,
-            title,
-            payload: phoneNumber,
+            title: validatedTitle,
+            payload: validatedPhoneNumber,
           } as PhoneNumberButton;
         }),
 
       /**
        * Create an account link button for account linking flow
-       * 
+       *
        * @param url - Authorization URL for account linking
        * @returns Effect containing the AccountLinkButton
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createAccountLinkButton("https://example.com/auth");
@@ -242,9 +286,9 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
 
       /**
        * Create an account unlink button for account unlinking flow
-       * 
+       *
        * @returns Effect containing the AccountUnlinkButton
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createAccountUnlinkButton();
@@ -257,12 +301,12 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
 
       /**
        * Create a game play button for Instant Games
-       * 
+       *
        * @param title - Button title (max 20 characters)
        * @param payload - Optional game payload
        * @param gameMetadata - Optional game metadata
        * @returns Effect containing the GamePlayButton or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const button = yield* service.createGamePlayButton("Play Game", "level_1");
@@ -276,27 +320,28 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
           context_id?: string;
         }
       ) =>
-        title.length > 20
-          ? Effect.fail(
-              new ValidationError({
-                field: "title",
-                message: "Button title must be 20 characters or less",
-              })
-            )
-          : Effect.succeed({
-              type: ButtonType.GAME_PLAY,
-              title,
-              payload,
-              game_metadata: gameMetadata,
-            } as GamePlayButton),
+        Effect.gen(function* () {
+          const validatedTitle = yield* validateWithSchema(
+            ButtonTitleSchema,
+            title,
+            "title",
+            "Button title must be 20 characters or less"
+          );
+          return {
+            type: ButtonType.GAME_PLAY,
+            title: validatedTitle,
+            payload,
+            game_metadata: gameMetadata,
+          } as GamePlayButton;
+        }),
 
       /**
        * Create a button template payload with validation
-       * 
+       *
        * @param text - Template text (max 640 characters)
        * @param buttons - Array of buttons (1-3 buttons required)
        * @returns Effect containing the ButtonTemplatePayload or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const button1 = yield* service.createWebUrlButton("Visit", "https://example.com");
@@ -306,41 +351,33 @@ export class ButtonTemplateService extends Effect.Service<ButtonTemplateService>
        */
       createButtonTemplatePayload: (text: string, buttons: Button[]) =>
         Effect.gen(function* () {
-          if (!text || text.length === 0) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "text",
-                message: "Text is required for button template message",
-              })
-            );
-          }
-          if (text.length > 640) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "text",
-                message: "Text must be 640 characters or less",
-              })
-            );
-          }
-          if (buttons.length < 1) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "buttons",
-                message: "At least one button is required",
-              })
-            );
-          }
-          if (buttons.length > 3) {
-            return yield* Effect.fail(
-              new ValidationError({
-                field: "buttons",
-                message: "Maximum of 3 buttons allowed per button template",
-              })
-            );
-          }
+          const textAtLeastOneCharacter = yield* validateWithSchema(
+            ButtonTemplateTextMinSchema,
+            text,
+            "text",
+            "Text is required for button template message"
+          );
+          const validatedText = yield* validateWithSchema(
+            ButtonTemplateTextMaxSchema,
+            textAtLeastOneCharacter,
+            "text",
+            "Text must be 640 characters or less"
+          );
+          yield* validateWithSchema(
+            ButtonArrayMinSchema,
+            buttons,
+            "buttons",
+            "At least one button is required"
+          );
+          yield* validateWithSchema(
+            ButtonArrayMaxSchema,
+            buttons,
+            "buttons",
+            "Maximum of 3 buttons allowed per button template"
+          );
           return {
             template_type: "button" as const,
-            text,
+            text: validatedText,
             buttons,
           };
         }),
