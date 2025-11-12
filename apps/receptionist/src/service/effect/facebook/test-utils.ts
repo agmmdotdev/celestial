@@ -1,12 +1,16 @@
 import { Effect, Layer } from "@celestial/effect";
-import { HttpClient } from "@effect/platform";
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "@effect/platform";
 import { EnvService } from "../env.service.js";
 
 /**
  * Creates a mock HttpClient layer with customizable response behavior.
  *
- * @param responseFactory - A function that returns a mock response object.
- *                          The response should have a `json` property that returns an Effect.
+ * @param responseFactory - A function that returns a mock response configuration.
+ *                          Provide either a `body` value or a legacy object containing a `json` Effect.
  * @returns A Layer providing a mock HttpClient
  *
  * @example
@@ -19,22 +23,82 @@ import { EnvService } from "../env.service.js";
  * ```
  */
 export function createMockHttpClient<T = Record<string, unknown>>(
-  responseFactory: () => { json: Effect.Effect<T> }
+  responseFactory: (request: HttpClientRequest.HttpClientRequest) =>
+    | {
+        readonly status?: number;
+        readonly body?: T;
+        readonly headers?: Record<string, string>;
+      }
+    | {
+        readonly status?: number;
+        readonly headers?: Record<string, string>;
+        readonly json: Effect.Effect<T>;
+      }
 ): Layer.Layer<HttpClient.HttpClient> {
   return Layer.succeed(
     HttpClient.HttpClient,
-    HttpClient.HttpClient.of({
-      execute: () => Effect.succeed({} as never),
-      get: () => Effect.succeed(responseFactory() as never),
-      head: () => Effect.succeed(responseFactory() as never),
-      post: () => Effect.succeed(responseFactory() as never),
-      patch: () => Effect.succeed(responseFactory() as never),
-      put: () => Effect.succeed(responseFactory() as never),
-      del: () => Effect.succeed(responseFactory() as never),
-      options: () => Effect.succeed(responseFactory() as never),
-    } as never)
+    HttpClient.makeWith(
+      (requestEffect) =>
+        Effect.flatMap(requestEffect, (request) =>
+          Effect.flatMap(
+            Effect.sync(() => responseFactory(request)),
+            (config) => {
+              const status = config.status ?? 200;
+              const headers = {
+                "Content-Type": "application/json",
+                ...(config.headers ?? {}),
+              };
+
+              if ("json" in config) {
+                return config.json.pipe(
+                  Effect.map((body) =>
+                    createHttpClientResponse({
+                      request,
+                      status,
+                      headers,
+                      body,
+                    })
+                  )
+                ) as Effect.Effect<
+                  HttpClientResponse.HttpClientResponse,
+                  never
+                >;
+              }
+
+              return Effect.succeed(
+                createHttpClientResponse({
+                  request,
+                  status,
+                  headers,
+                  body: config.body,
+                })
+              );
+            }
+          )
+        ),
+      (request) => Effect.succeed(request)
+    ) as HttpClient.HttpClient
   );
 }
+
+const createHttpClientResponse = ({
+  request,
+  status,
+  headers,
+  body,
+}: {
+  readonly request: HttpClientRequest.HttpClientRequest;
+  readonly status: number;
+  readonly headers: Record<string, string>;
+  readonly body?: unknown;
+}): HttpClientResponse.HttpClientResponse =>
+  HttpClientResponse.fromWeb(
+    request,
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+      headers,
+    })
+  );
 
 /**
  * Shared mock EnvService layer used across all Facebook service tests.

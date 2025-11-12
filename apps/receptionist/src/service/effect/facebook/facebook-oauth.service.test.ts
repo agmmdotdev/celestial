@@ -1,21 +1,17 @@
 import { Effect, Layer } from "@celestial/effect";
 import { describe, it, expect } from "vitest";
-import {
-  FacebookOAuthService,
-  FacebookTokenResponse,
-  FacebookErrorResponse,
-} from "./facebook-oauth.service.js";
+import { FacebookOAuthService } from "./facebook-oauth.service.js";
 import { FacebookApiError } from "../../errors/index.js";
 import { createMockHttpClient, MockEnvService } from "./test-utils.js";
 
 // Create mock responses for different scenarios
-const createMockSuccessTokenResponse = (): FacebookTokenResponse => ({
+const createMockSuccessTokenResponse = () => ({
   access_token: "mock-long-lived-token",
   token_type: "bearer",
   expires_in: 5184000, // 60 days in seconds
 });
 
-const createMockErrorResponse = (): FacebookErrorResponse => ({
+const createMockErrorResponse = () => ({
   error: {
     message: "Invalid OAuth access token",
     type: "OAuthException",
@@ -26,17 +22,17 @@ const createMockErrorResponse = (): FacebookErrorResponse => ({
 
 // Mock HttpClient layer for successful token exchange
 const MockHttpClientSuccess = createMockHttpClient(() => ({
-  json: Effect.succeed(createMockSuccessTokenResponse()),
+  body: createMockSuccessTokenResponse(),
 }));
 
 // Mock HttpClient layer for error response
 const MockHttpClientError = createMockHttpClient(() => ({
-  json: Effect.succeed(createMockErrorResponse()),
+  body: createMockErrorResponse(),
 }));
 
 // Mock HttpClient layer for missing access_token
 const MockHttpClientNoToken = createMockHttpClient(() => ({
-  json: Effect.succeed({ token_type: "bearer" }),
+  body: { token_type: "bearer" },
 }));
 
 // Test layer with successful mock
@@ -96,7 +92,9 @@ describe("FacebookOAuthService", () => {
       if (result._tag === "Left") {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
-        expect(error.message).toBe("No access_token in response");
+        expect(error.message).toBe(
+          "Failed to exchange short-lived token: access_token missing in response"
+        );
       }
     });
   });
@@ -141,7 +139,9 @@ describe("FacebookOAuthService", () => {
       if (result._tag === "Left") {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
-        expect(error.message).toBe("No access_token in response");
+        expect(error.message).toBe(
+          "Failed to refresh long-lived token: access_token missing in response"
+        );
       }
     });
   });
