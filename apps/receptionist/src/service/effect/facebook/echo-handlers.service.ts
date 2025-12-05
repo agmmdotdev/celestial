@@ -155,15 +155,15 @@ export class FacebookEchoMessagesHandler extends Effect.Service<FacebookEchoMess
         Effect.gen(function* () {
           const callbackList = callbacks.get(type) || [];
 
-          for (const callback of callbackList) {
-            yield* Effect.catchAll(callback(event), (error) =>
+          yield* Effect.forEach(callbackList, (callback) =>
+            Effect.catchAll(callback(event), (error) =>
               options.enableLogging
                 ? Effect.sync(() =>
                     console.error(`Error in ${type} echo callback:`, error)
                   )
                 : Effect.void
-            );
-          }
+            )
+          );
         });
 
       /**
@@ -213,33 +213,29 @@ export class FacebookEchoMessagesHandler extends Effect.Service<FacebookEchoMess
             return yield* Effect.fail(new Error("Invalid webhook object type"));
           }
 
-          for (const entry of payload.entry) {
-            // Validate page ID if configured
-            if (options.pageId && entry.id !== options.pageId) {
-              if (options.enableLogging) {
-                yield* Effect.sync(() =>
-                  console.warn(
-                    `Skipping entry for page ${entry.id}, expected ${options.pageId}`
+          yield* Effect.forEach(payload.entry, (entry) =>
+            options.pageId && entry.id !== options.pageId
+              ? options.enableLogging
+                ? Effect.sync(() =>
+                    console.warn(
+                      `Skipping entry for page ${entry.id}, expected ${options.pageId}`
+                    )
                   )
-                );
-              }
-              continue;
-            }
+                : Effect.void
+              : Effect.gen(function* () {
+                  if (entry.messaging) {
+                    yield* Effect.forEach(entry.messaging, (event) =>
+                      handleEchoMessagingEvent(event)
+                    );
+                  }
 
-            // Process regular messaging events
-            if (entry.messaging) {
-              for (const event of entry.messaging) {
-                yield* handleEchoMessagingEvent(event);
-              }
-            }
-
-            // Process standby events if enabled
-            if (options.handleStandbyEvents && entry.standby) {
-              for (const event of entry.standby) {
-                yield* handleEchoMessagingEvent(event);
-              }
-            }
-          }
+                  if (options.handleStandbyEvents && entry.standby) {
+                    yield* Effect.forEach(entry.standby, (event) =>
+                      handleEchoMessagingEvent(event)
+                    );
+                  }
+                })
+          );
         });
 
       /**

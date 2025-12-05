@@ -110,15 +110,15 @@ export class FacebookPostbacksHandler extends Effect.Service<FacebookPostbacksHa
         Effect.gen(function* () {
           const callbackList = callbacks.get(type) || [];
 
-          for (const callback of callbackList) {
-            yield* Effect.catchAll(callback(event), (error) =>
+          yield* Effect.forEach(callbackList, (callback) =>
+            Effect.catchAll(callback(event), (error) =>
               options.enableLogging
                 ? Effect.sync(() =>
                     console.error(`Error in ${type} callback:`, error)
                   )
                 : Effect.void
-            );
-          }
+            )
+          );
         });
 
       /**
@@ -163,23 +163,19 @@ export class FacebookPostbacksHandler extends Effect.Service<FacebookPostbacksHa
             return yield* Effect.fail(new Error("Invalid webhook object type"));
           }
 
-          for (const entry of payload.entry) {
-            // Validate page ID if configured
-            if (options.pageId && entry.id !== options.pageId) {
-              if (options.enableLogging) {
-                yield* Effect.sync(() =>
-                  console.warn(
-                    `Skipping entry for page ${entry.id}, expected ${options.pageId}`
+          yield* Effect.forEach(payload.entry, (entry) =>
+            options.pageId && entry.id !== options.pageId
+              ? options.enableLogging
+                ? Effect.sync(() =>
+                    console.warn(
+                      `Skipping entry for page ${entry.id}, expected ${options.pageId}`
+                    )
                   )
-                );
-              }
-              continue;
-            }
-
-            for (const event of entry.messaging) {
-              yield* handlePostbackEvent(event);
-            }
-          }
+                : Effect.void
+              : Effect.forEach(entry.messaging, (event) =>
+                  handlePostbackEvent(event)
+                )
+          );
         });
 
       /**

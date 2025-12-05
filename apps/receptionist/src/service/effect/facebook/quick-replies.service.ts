@@ -66,10 +66,10 @@ export interface QuickReplyResponse {
 
 /**
  * Effect-based Quick Replies Service
- * 
+ *
  * This service provides methods for creating Facebook Messenger quick replies
  * with validation and type safety through Effect.
- * 
+ *
  * @example
  * ```typescript
  * const program = Effect.gen(function* () {
@@ -86,12 +86,12 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
     effect: Effect.succeed({
       /**
        * Create a text quick reply button.
-       * 
+       *
        * @param title - The button text (max 20 characters)
        * @param payload - Optional developer-defined payload (max 1000 characters)
        * @param imageUrl - Optional image URL for icon beside title
        * @returns Effect containing the TextQuickReply or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const quickReply = yield* service.createTextQuickReply("Yes", "YES_PAYLOAD");
@@ -150,9 +150,9 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       /**
        * Create a user phone number quick reply.
        * This will automatically pre-fill with the user's phone number from their profile.
-       * 
+       *
        * @returns Effect containing the UserPhoneNumberQuickReply
-       * 
+       *
        * @example
        * ```typescript
        * const quickReply = yield* service.createUserPhoneNumberQuickReply();
@@ -166,9 +166,9 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       /**
        * Create a user email quick reply.
        * This will automatically pre-fill with the user's email from their profile.
-       * 
+       *
        * @returns Effect containing the UserEmailQuickReply
-       * 
+       *
        * @example
        * ```typescript
        * const quickReply = yield* service.createUserEmailQuickReply();
@@ -181,10 +181,10 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Create multiple text quick replies from an array of options.
-       * 
+       *
        * @param options - Array of text options with optional payloads and images
        * @returns Effect containing array of TextQuickReply or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const quickReplies = yield* service.createTextQuickReplies([
@@ -210,29 +210,23 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
             );
           }
 
-          const quickReplies: TextQuickReply[] = [];
-          for (const option of options) {
-            const quickReply = yield* Effect.gen(function* () {
-              const service = yield* QuickRepliesService;
-              return yield* service.createTextQuickReply(
-                option.title,
-                option.payload,
-                option.imageUrl
-              );
-            });
-            quickReplies.push(quickReply);
-          }
-
-          return quickReplies;
+          const service = yield* QuickRepliesService;
+          return yield* Effect.forEach(options, (option) =>
+            service.createTextQuickReply(
+              option.title,
+              option.payload,
+              option.imageUrl
+            )
+          );
         }),
 
       /**
        * Create a message with quick replies.
-       * 
+       *
        * @param text - The message text
        * @param quickReplies - Array of quick reply objects (max 13)
        * @returns Effect containing MessageWithQuickReplies or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const message = yield* service.createQuickReplyMessage("Choose an option", quickReplies);
@@ -268,20 +262,17 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
           }
 
           // Validate each text quick reply has a title
-          for (let i = 0; i < quickReplies.length; i++) {
-            const quickReply = quickReplies[i];
-            if (
-              quickReply.content_type === QuickReplyContentType.TEXT &&
-              !(quickReply as TextQuickReply).title
-            ) {
-              return yield* Effect.fail(
-                new ValidationError({
-                  field: `quick_replies[${i}]`,
-                  message: `Quick reply at index ${i} is missing required title`,
-                })
-              );
-            }
-          }
+          yield* Effect.forEach(quickReplies, (quickReply, index) =>
+            quickReply.content_type === QuickReplyContentType.TEXT &&
+            !(quickReply as TextQuickReply).title
+              ? Effect.fail(
+                  new ValidationError({
+                    field: `quick_replies[${index}]`,
+                    message: `Quick reply at index ${index} is missing required title`,
+                  })
+                )
+              : Effect.succeed(undefined)
+          );
 
           return {
             text: text.trim(),
@@ -291,12 +282,12 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Create a quick reply message for yes/no questions.
-       * 
+       *
        * @param text - The question text
        * @param yesPayload - Optional payload for yes button (defaults to "YES")
        * @param noPayload - Optional payload for no button (defaults to "NO")
        * @returns Effect containing MessageWithQuickReplies or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const message = yield* service.createYesNoQuickReplyMessage("Do you agree?");
@@ -325,11 +316,11 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Create a quick reply message for rating/feedback (1-5 stars).
-       * 
+       *
        * @param text - The message text
        * @param useStarEmojis - Whether to use star emojis in titles (defaults to true)
        * @returns Effect containing MessageWithQuickReplies or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const message = yield* service.createRatingQuickReplyMessage("Rate your experience");
@@ -342,29 +333,23 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
         Effect.gen(function* () {
           const service = yield* QuickRepliesService;
           const ratings = [1, 2, 3, 4, 5];
-          const quickReplies: TextQuickReply[] = [];
-
-          for (const rating of ratings) {
+          const quickReplies = yield* Effect.forEach(ratings, (rating) => {
             const title = useStarEmojis
               ? "⭐".repeat(rating)
               : `${rating} Star${rating > 1 ? "s" : ""}`;
-            const quickReply = yield* service.createTextQuickReply(
-              title,
-              `RATING_${rating}`
-            );
-            quickReplies.push(quickReply);
-          }
+            return service.createTextQuickReply(title, `RATING_${rating}`);
+          });
 
           return yield* service.createQuickReplyMessage(text, quickReplies);
         }),
 
       /**
        * Create a quick reply message for multiple choice questions.
-       * 
+       *
        * @param text - The question text
        * @param choices - Array of choice options
        * @returns Effect containing MessageWithQuickReplies or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const message = yield* service.createMultipleChoiceQuickReplyMessage(
@@ -386,29 +371,26 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       ) =>
         Effect.gen(function* () {
           const service = yield* QuickRepliesService;
-          const quickReplies: TextQuickReply[] = [];
-
-          for (const choice of choices) {
-            const quickReply = yield* service.createTextQuickReply(
+          const quickReplies = yield* Effect.forEach(choices, (choice) =>
+            service.createTextQuickReply(
               choice.label,
               choice.value,
               choice.imageUrl
-            );
-            quickReplies.push(quickReply);
-          }
+            )
+          );
 
           return yield* service.createQuickReplyMessage(text, quickReplies);
         }),
 
       /**
        * Create a quick reply message for collecting contact information.
-       * 
+       *
        * @param text - The message text
        * @param includePhone - Whether to include phone number quick reply (defaults to true)
        * @param includeEmail - Whether to include email quick reply (defaults to true)
        * @param additionalOptions - Optional additional text quick replies
        * @returns Effect containing MessageWithQuickReplies or ValidationError
-       * 
+       *
        * @example
        * ```typescript
        * const message = yield* service.createContactQuickReplyMessage(
@@ -444,9 +426,8 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
           }
 
           if (additionalOptions) {
-            const textQuickReplies = yield* service.createTextQuickReplies(
-              additionalOptions
-            );
+            const textQuickReplies =
+              yield* service.createTextQuickReplies(additionalOptions);
             quickReplies.push(...textQuickReplies);
           }
 
@@ -455,10 +436,10 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Check if a quick reply response is from a text quick reply.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing boolean indicating if it's a text quick reply response
-       * 
+       *
        * @example
        * ```typescript
        * const isText = yield* service.isTextQuickReplyResponse(response);
@@ -479,10 +460,10 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Check if a quick reply response is from a phone number quick reply.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing boolean indicating if it's a phone number quick reply response
-       * 
+       *
        * @example
        * ```typescript
        * const isPhone = yield* service.isPhoneNumberQuickReplyResponse(response);
@@ -499,10 +480,10 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Check if a quick reply response is from an email quick reply.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing boolean indicating if it's an email quick reply response
-       * 
+       *
        * @example
        * ```typescript
        * const isEmail = yield* service.isEmailQuickReplyResponse(response);
@@ -517,10 +498,10 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
 
       /**
        * Extract the phone number from a phone number quick reply response.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing the phone number or null if not a valid phone response
-       * 
+       *
        * @example
        * ```typescript
        * const phoneNumber = yield* service.extractPhoneNumber(response);
@@ -529,18 +510,17 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       extractPhoneNumber: (quickReplyResponse: QuickReplyResponse) =>
         Effect.gen(function* () {
           const service = yield* QuickRepliesService;
-          const isPhone = yield* service.isPhoneNumberQuickReplyResponse(
-            quickReplyResponse
-          );
+          const isPhone =
+            yield* service.isPhoneNumberQuickReplyResponse(quickReplyResponse);
           return isPhone ? quickReplyResponse.payload : null;
         }),
 
       /**
        * Extract the email address from an email quick reply response.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing the email address or null if not a valid email response
-       * 
+       *
        * @example
        * ```typescript
        * const email = yield* service.extractEmail(response);
@@ -549,18 +529,17 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       extractEmail: (quickReplyResponse: QuickReplyResponse) =>
         Effect.gen(function* () {
           const service = yield* QuickRepliesService;
-          const isEmail = yield* service.isEmailQuickReplyResponse(
-            quickReplyResponse
-          );
+          const isEmail =
+            yield* service.isEmailQuickReplyResponse(quickReplyResponse);
           return isEmail ? quickReplyResponse.payload : null;
         }),
 
       /**
        * Get the custom payload from a text quick reply response.
-       * 
+       *
        * @param quickReplyResponse - The quick reply response from webhook
        * @returns Effect containing the custom payload or null if not a text quick reply
-       * 
+       *
        * @example
        * ```typescript
        * const payload = yield* service.getTextQuickReplyPayload(response);
@@ -569,9 +548,8 @@ export class QuickRepliesService extends Effect.Service<QuickRepliesService>()(
       getTextQuickReplyPayload: (quickReplyResponse: QuickReplyResponse) =>
         Effect.gen(function* () {
           const service = yield* QuickRepliesService;
-          const isText = yield* service.isTextQuickReplyResponse(
-            quickReplyResponse
-          );
+          const isText =
+            yield* service.isTextQuickReplyResponse(quickReplyResponse);
           return isText ? quickReplyResponse.payload : null;
         }),
     } as const),
