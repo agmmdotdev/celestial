@@ -1,9 +1,22 @@
 import { Effect, Layer } from "@celestial/effect";
 import { HttpClient, HttpBody, FetchHttpClient } from "@effect/platform";
 import { EnvService } from "../env.service.js";
-import { ButtonTemplateService, Button, ButtonTemplatePayload } from "./button-template.service.js";
-import { QuickRepliesService, QuickReply, QuickReplyResponse, MessageWithQuickReplies } from "./quick-replies.service.js";
-import { FacebookApiError } from "../../errors/index.js";
+import {
+  ButtonTemplateService,
+  Button,
+  ButtonTemplatePayload,
+} from "./button-template.service.js";
+import {
+  QuickRepliesService,
+  QuickReply,
+  QuickReplyResponse,
+  MessageWithQuickReplies,
+} from "./quick-replies.service.js";
+import {
+  FacebookApiError,
+  toFacebookErrorDetail,
+  MessagingErrorMessage,
+} from "../../errors/index.js";
 import { FacebookGraphApiUrl } from "../../service/facebook-graph-api-constants.js";
 
 /**
@@ -128,10 +141,10 @@ export interface MessageWithQuickReplyEvent {
 
 /**
  * Effect-based Messaging Service
- * 
+ *
  * This service provides methods for sending messages via Facebook Messenger Platform
  * with validation and type safety through Effect.
- * 
+ *
  * @example
  * ```typescript
  * const program = Effect.gen(function* () {
@@ -184,7 +197,8 @@ export class MessagingService extends Effect.Service<MessagingService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to send message: ${error}`,
+                    message: MessagingErrorMessage.SEND_MESSAGE_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -195,7 +209,8 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               Effect.fail(
                 new FacebookApiError({
                   code: 0,
-                  message: `Failed to parse response: ${error}`,
+                  message: MessagingErrorMessage.PARSE_MESSAGE_RESPONSE_FAILED,
+                  details: toFacebookErrorDetail(error),
                 })
               )
             )
@@ -717,7 +732,8 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               return yield* Effect.fail(
                 new FacebookApiError({
                   code: 0,
-                  message: "At least one image URL is required.",
+                  message: MessagingErrorMessage.MISSING_IMAGE_URL,
+                  details: "At least one image URL is required.",
                 })
               );
             }
@@ -725,7 +741,8 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               return yield* Effect.fail(
                 new FacebookApiError({
                   code: 0,
-                  message: "Maximum of 30 images allowed per message.",
+                  message: MessagingErrorMessage.TOO_MANY_IMAGES,
+                  details: "Maximum of 30 images allowed per message.",
                 })
               );
             }

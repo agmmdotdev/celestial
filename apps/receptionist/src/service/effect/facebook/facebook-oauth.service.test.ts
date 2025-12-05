@@ -1,7 +1,10 @@
 import { Effect, Layer } from "@celestial/effect";
 import { describe, it, expect } from "vitest";
 import { FacebookOAuthService } from "./facebook-oauth.service.js";
-import { FacebookApiError } from "../../errors/index.js";
+import {
+  FacebookApiError,
+  FacebookOAuthErrorMessage,
+} from "../../errors/index.js";
 import { createMockHttpClient, MockEnvService } from "./test-utils.js";
 
 // Create mock responses for different scenarios
@@ -75,7 +78,10 @@ describe("FacebookOAuthService", () => {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
         expect(error.code).toBe(190);
-        expect(error.message).toBe("Invalid OAuth access token");
+        expect(error.message).toBe(FacebookOAuthErrorMessage.GRAPH_API_ERROR);
+        expect(error.details).toBe(
+          "OAuthException: Invalid OAuth access token"
+        );
         expect(error.fbtraceId).toBe("mock-trace-id");
       }
     });
@@ -93,6 +99,9 @@ describe("FacebookOAuthService", () => {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
         expect(error.message).toBe(
+          FacebookOAuthErrorMessage.ACCESS_TOKEN_MISSING
+        );
+        expect(error.details).toBe(
           "Failed to exchange short-lived token: access_token missing in response"
         );
       }
@@ -123,7 +132,10 @@ describe("FacebookOAuthService", () => {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
         expect(error.code).toBe(190);
-        expect(error.message).toBe("Invalid OAuth access token");
+        expect(error.message).toBe(FacebookOAuthErrorMessage.GRAPH_API_ERROR);
+        expect(error.details).toBe(
+          "OAuthException: Invalid OAuth access token"
+        );
       }
     });
 
@@ -140,6 +152,9 @@ describe("FacebookOAuthService", () => {
         const error = result.left as FacebookApiError;
         expect(error._tag).toBe("FacebookApiError");
         expect(error.message).toBe(
+          FacebookOAuthErrorMessage.ACCESS_TOKEN_MISSING
+        );
+        expect(error.details).toBe(
           "Failed to refresh long-lived token: access_token missing in response"
         );
       }

@@ -1,7 +1,11 @@
 import { Effect, Layer } from "@celestial/effect";
 import { HttpClient, FetchHttpClient } from "@effect/platform";
 import { EnvService } from "../env.service.js";
-import { FacebookApiError } from "../../errors/index.js";
+import {
+  FacebookApiError,
+  toFacebookErrorDetail,
+  WebhookErrorMessage,
+} from "../../errors/index.js";
 import { FacebookGraphApiUrl } from "../../service/facebook-graph-api-constants.js";
 
 /**
@@ -96,7 +100,8 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to fetch page details: ${error}`,
+                    message: WebhookErrorMessage.FETCH_PAGE_DETAILS_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -107,7 +112,9 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to parse page details response: ${error}`,
+                    message:
+                      WebhookErrorMessage.PARSE_PAGE_DETAILS_RESPONSE_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -150,7 +157,8 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to subscribe page to webhooks: ${error}`,
+                    message: WebhookErrorMessage.SUBSCRIBE_WEBHOOKS_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -161,7 +169,9 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to parse webhook subscription response: ${error}`,
+                    message:
+                      WebhookErrorMessage.PARSE_WEBHOOK_SUBSCRIPTION_RESPONSE_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -197,7 +207,8 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to get subscribed apps: ${error}`,
+                    message: WebhookErrorMessage.GET_SUBSCRIBED_APPS_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )
@@ -208,7 +219,9 @@ export class WebhookService extends Effect.Service<WebhookService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to parse subscribed apps response: ${error}`,
+                    message:
+                      WebhookErrorMessage.PARSE_SUBSCRIBED_APPS_RESPONSE_FAILED,
+                    details: toFacebookErrorDetail(error),
                   })
                 )
               )

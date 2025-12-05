@@ -6,7 +6,10 @@ import {
   HttpClientResponse,
 } from "@effect/platform";
 import { EnvService } from "../env.service.js";
-import { FacebookApiError } from "../../errors/index.js";
+import {
+  FacebookApiError,
+  FacebookOAuthErrorMessage,
+} from "../../errors/index.js";
 import { FacebookGraphApiUrl } from "../../service/facebook-graph-api-constants.js";
 
 const TokenRequestSchema = Schema.Struct({
@@ -94,7 +97,9 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
               (error) =>
                 new FacebookApiError({
                   code: 0,
-                  message: `Failed to ${context}: request validation failed (${stringifyError(
+                  message:
+                    FacebookOAuthErrorMessage.TOKEN_REQUEST_VALIDATION_FAILED,
+                  details: `Failed to ${context}: request validation failed (${stringifyError(
                     error
                   )})`,
                 })
@@ -110,7 +115,8 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
               (error) =>
                 new FacebookApiError({
                   code: 0,
-                  message: `Failed to ${context}: ${stringifyError(error)}`,
+                  message: FacebookOAuthErrorMessage.TOKEN_REQUEST_FAILED,
+                  details: `Failed to ${context}: ${stringifyError(error)}`,
                 })
             )
           );
@@ -123,7 +129,9 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
                 (error) =>
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to ${context}: response validation failed (${stringifyError(
+                    message:
+                      FacebookOAuthErrorMessage.TOKEN_RESPONSE_VALIDATION_FAILED,
+                    details: `Failed to ${context}: response validation failed (${stringifyError(
                       error
                     )})`,
                   })
@@ -134,7 +142,8 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
             return yield* Effect.fail(
               new FacebookApiError({
                 code: parsed.error.code,
-                message: parsed.error.message,
+                message: FacebookOAuthErrorMessage.GRAPH_API_ERROR,
+                details: `${parsed.error.type}: ${parsed.error.message}`,
                 fbtraceId: parsed.error.fbtrace_id,
               })
             );
@@ -144,7 +153,8 @@ export class FacebookOAuthService extends Effect.Service<FacebookOAuthService>()
             return yield* Effect.fail(
               new FacebookApiError({
                 code: 0,
-                message: `Failed to ${context}: access_token missing in response`,
+                message: FacebookOAuthErrorMessage.ACCESS_TOKEN_MISSING,
+                details: `Failed to ${context}: access_token missing in response`,
               })
             );
           }

@@ -1,7 +1,11 @@
 import { Effect, Layer } from "@celestial/effect";
 import { HttpClient, HttpBody, FetchHttpClient } from "@effect/platform";
 import { EnvService } from "../env.service.js";
-import { FacebookApiError } from "../../errors/index.js";
+import {
+  FacebookApiError,
+  toFacebookErrorDetail,
+  SenderActionErrorMessage,
+} from "../../errors/index.js";
 import { FacebookGraphApiUrl } from "../../service/facebook-graph-api-constants.js";
 
 /**
@@ -97,7 +101,8 @@ export class SenderActionService extends Effect.Service<SenderActionService>()(
                 Effect.fail(
                   new FacebookApiError({
                     code: 0,
-                    message: `Failed to send sender action (${action}): ${error}`,
+                    message: SenderActionErrorMessage.SEND_SENDER_ACTION_FAILED,
+                    details: `${action}: ${toFacebookErrorDetail(error)}`,
                   })
                 )
               )
@@ -108,7 +113,9 @@ export class SenderActionService extends Effect.Service<SenderActionService>()(
               Effect.fail(
                 new FacebookApiError({
                   code: 0,
-                  message: `Failed to parse sender action response: ${error}`,
+                  message:
+                    SenderActionErrorMessage.PARSE_SENDER_ACTION_RESPONSE_FAILED,
+                  details: toFacebookErrorDetail(error),
                 })
               )
             )
