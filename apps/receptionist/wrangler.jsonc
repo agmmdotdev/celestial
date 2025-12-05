@@ -4,14 +4,28 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
-     "workflows": [
+  "workflows": [
     {
       "name": "checkout-workflow",
       "binding": "CHECKOUT_WORKFLOW",
       "class_name": "CheckoutWorkflow"
     }
   ],
-  "observability": {"enabled": true},
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MessengerAgent",
+        "class_name": "MessengerAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-messenger-agent",
+      "new_classes": ["MessengerAgent"]
+    }
+  ],
+  "observability": { "enabled": true },
 
   "vars": {
     "MY_VAR": "Hello from Cloudflare"
