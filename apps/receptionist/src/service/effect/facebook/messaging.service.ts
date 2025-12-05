@@ -49,6 +49,69 @@ export enum AttachmentType {
   TEMPLATE = "template",
 }
 
+type TemplatePrimitive = string | number | boolean | null;
+type TemplateRecord = Readonly<{
+  [key: string]:
+    | TemplatePrimitive
+    | TemplateRecord
+    | ReadonlyArray<TemplatePrimitive | TemplateRecord>;
+}>;
+
+interface GraphApiErrorBody {
+  readonly message?: string;
+  readonly type?: string;
+  readonly code?: number;
+  readonly error_subcode?: number;
+  readonly fbtrace_id?: string;
+}
+
+interface GraphApiErrorResponse {
+  readonly error: GraphApiErrorBody;
+}
+
+export interface GenericTemplateDefaultAction {
+  readonly type: "web_url";
+  readonly url: string;
+  readonly webview_height_ratio?: "compact" | "tall" | "full";
+}
+
+export interface GenericTemplateElement {
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly image_url?: string;
+  readonly default_action?: GenericTemplateDefaultAction;
+  readonly buttons?: ReadonlyArray<Button>;
+}
+
+export interface GenericTemplatePayload {
+  readonly template_type: "generic";
+  readonly elements: ReadonlyArray<GenericTemplateElement>;
+  readonly image_aspect_ratio?: "horizontal" | "square";
+}
+
+export type CouponTemplatePayload = TemplateRecord;
+export type ReceiptTemplatePayload = TemplateRecord;
+export type TemplatePayload =
+  | ButtonTemplatePayload
+  | GenericTemplatePayload
+  | CouponTemplatePayload
+  | ReceiptTemplatePayload;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isGraphApiErrorResponse = (
+  value: unknown
+): value is GraphApiErrorResponse =>
+  isRecord(value) &&
+  "error" in value &&
+  isRecord((value as Record<string, unknown>).error);
+
+const isSendMessageResponse = (value: unknown): value is SendMessageResponse =>
+  isRecord(value) &&
+  typeof (value as Record<string, unknown>).recipient_id === "string" &&
+  typeof (value as Record<string, unknown>).message_id === "string";
+
 /**
  * Recipient interface
  */
@@ -70,7 +133,7 @@ export interface AttachmentPayload {
  */
 export interface Attachment {
   type: AttachmentType;
-  payload: AttachmentPayload | ButtonTemplatePayload | any;
+  payload: AttachmentPayload | TemplatePayload;
 }
 
 /**
@@ -100,7 +163,7 @@ export interface MessageWithMultipleAttachments {
 export interface MessageWithTemplate {
   attachment: {
     type: AttachmentType.TEMPLATE;
-    payload: any;
+    payload: TemplatePayload;
   };
 }
 
@@ -193,30 +256,63 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               body: bodyData,
             })
             .pipe(
-              Effect.catchAll((error) =>
-                Effect.fail(
+              Effect.mapError(
+                (error) =>
                   new FacebookApiError({
                     code: 0,
                     message: MessagingErrorMessage.SEND_MESSAGE_FAILED,
                     details: toFacebookErrorDetail(error),
                   })
-                )
               )
             );
 
-          const data = yield* response.json.pipe(
-            Effect.catchAll((error) =>
-              Effect.fail(
+          const parsedBody = yield* response.json.pipe(
+            Effect.mapError(
+              (error) =>
                 new FacebookApiError({
-                  code: 0,
+                  code: response.status,
                   message: MessagingErrorMessage.PARSE_MESSAGE_RESPONSE_FAILED,
                   details: toFacebookErrorDetail(error),
                 })
-              )
             )
           );
 
-          return data as SendMessageResponse;
+          if (isGraphApiErrorResponse(parsedBody)) {
+            const graphError = parsedBody.error;
+            return yield* Effect.fail(
+              new FacebookApiError({
+                code: graphError.code ?? response.status,
+                message: MessagingErrorMessage.SEND_MESSAGE_FAILED,
+                details:
+                  graphError.message ??
+                  MessagingErrorMessage.SEND_MESSAGE_FAILED,
+                fbtraceId: graphError.fbtrace_id,
+              })
+            );
+          }
+
+          if (response.status >= 400) {
+            return yield* Effect.fail(
+              new FacebookApiError({
+                code: response.status,
+                message: MessagingErrorMessage.SEND_MESSAGE_FAILED,
+                details: "Facebook API returned an error status.",
+              })
+            );
+          }
+
+          if (!isSendMessageResponse(parsedBody)) {
+            return yield* Effect.fail(
+              new FacebookApiError({
+                code: response.status,
+                message: MessagingErrorMessage.PARSE_MESSAGE_RESPONSE_FAILED,
+                details:
+                  "Response body does not contain recipient_id and message_id.",
+              })
+            );
+          }
+
+          return parsedBody;
         });
 
       return {
@@ -321,7 +417,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         sendGenericTemplateMessage: (
           pageId: string,
           recipientId: string,
-          genericPayload: any,
+          genericPayload: GenericTemplatePayload,
           messagingType: MessagingType = MessagingType.RESPONSE,
           pageAccessToken?: string
         ) =>
@@ -354,7 +450,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         sendCouponTemplateMessage: (
           pageId: string,
           recipientId: string,
-          couponPayload: any,
+          couponPayload: CouponTemplatePayload,
           messagingType: MessagingType = MessagingType.RESPONSE,
           pageAccessToken?: string
         ) =>
@@ -387,7 +483,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         sendReceiptTemplateMessage: (
           pageId: string,
           recipientId: string,
-          receiptPayload: any,
+          receiptPayload: ReceiptTemplatePayload,
           messagingType: MessagingType = MessagingType.RESPONSE,
           pageAccessToken?: string
         ) =>
@@ -834,14 +930,14 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         sendCarouselGenericTemplateMessage: (
           pageId: string,
           recipientId: string,
-          elements: Array<any>,
+          elements: ReadonlyArray<GenericTemplateElement>,
           imageAspectRatio?: "horizontal" | "square",
           messagingType: MessagingType = MessagingType.RESPONSE,
           pageAccessToken?: string
         ) =>
           Effect.gen(function* () {
             // This will be fully implemented when GenericTemplateService is available
-            const genericPayload = {
+            const genericPayload: GenericTemplatePayload = {
               template_type: "generic",
               elements,
               image_aspect_ratio: imageAspectRatio,
@@ -909,44 +1005,38 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         ) =>
           Effect.gen(function* () {
             // This will be fully implemented when GenericTemplateService is available
-            const productElements = products.map((product) => ({
-              title: product.title,
-              subtitle: product.subtitle || product.price,
-              image_url: product.imageUrl,
-              default_action: {
-                type: "web_url",
-                url: product.productUrl,
-                webview_height_ratio: options?.webview_height_ratio || "tall",
-              },
-              buttons: product.buttons,
-            }));
-
-            return yield* Effect.gen(function* () {
-              return yield* Effect.succeed({} as any);
-            }).pipe(
-              Effect.flatMap(() =>
-                Effect.gen(function* () {
-                  return yield* sendMessage(
-                    pageId,
-                    {
-                      recipient: { id: recipientId },
-                      messaging_type: messagingType,
-                      message: {
-                        attachment: {
-                          type: AttachmentType.TEMPLATE,
-                          payload: {
-                            template_type: "generic",
-                            elements: productElements,
-                            image_aspect_ratio: options?.image_aspect_ratio,
-                          },
-                        },
-                      },
-                    },
-                    pageAccessToken
-                  );
-                })
-              )
+            const productElements: Array<GenericTemplateElement> = products.map(
+              (product) => ({
+                title: product.title,
+                subtitle: product.subtitle || product.price,
+                image_url: product.imageUrl,
+                default_action: {
+                  type: "web_url",
+                  url: product.productUrl,
+                  webview_height_ratio: options?.webview_height_ratio || "tall",
+                },
+                buttons: product.buttons,
+              })
             );
+
+            const payload: GenericTemplatePayload = {
+              template_type: "generic",
+              elements: productElements,
+              image_aspect_ratio: options?.image_aspect_ratio,
+            };
+
+            const messageRequest: SendMessageRequest = {
+              recipient: { id: recipientId },
+              messaging_type: messagingType,
+              message: {
+                attachment: {
+                  type: AttachmentType.TEMPLATE,
+                  payload,
+                },
+              },
+            };
+
+            return yield* sendMessage(pageId, messageRequest, pageAccessToken);
           }),
 
         /**
@@ -995,16 +1085,23 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         ) =>
           Effect.gen(function* () {
             // This will be fully implemented when GenericTemplateService is available
-            const locationElements = locations.map((location) => ({
-              title: location.title,
-              subtitle: location.address,
-              image_url: location.imageUrl,
-              default_action: {
-                type: "web_url",
-                url: location.mapUrl,
-              },
-              buttons: location.buttons,
-            }));
+            const locationElements: Array<GenericTemplateElement> =
+              locations.map((location) => ({
+                title: location.title,
+                subtitle: location.address,
+                image_url: location.imageUrl,
+                default_action: {
+                  type: "web_url",
+                  url: location.mapUrl,
+                },
+                buttons: location.buttons,
+              }));
+
+            const payload: GenericTemplatePayload = {
+              template_type: "generic",
+              elements: locationElements,
+              image_aspect_ratio: options?.image_aspect_ratio,
+            };
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -1012,11 +1109,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               message: {
                 attachment: {
                   type: AttachmentType.TEMPLATE,
-                  payload: {
-                    template_type: "generic",
-                    elements: locationElements,
-                    image_aspect_ratio: options?.image_aspect_ratio,
-                  },
+                  payload,
                 },
               },
             };
@@ -1071,17 +1164,25 @@ export class MessagingService extends Effect.Service<MessagingService>()(
         ) =>
           Effect.gen(function* () {
             // This will be fully implemented when GenericTemplateService is available
-            const articleElements = articles.map((article) => ({
-              title: article.title,
-              subtitle: article.summary,
-              image_url: article.imageUrl,
-              default_action: {
-                type: "web_url",
-                url: article.articleUrl,
-                webview_height_ratio: options?.webview_height_ratio || "tall",
-              },
-              buttons: article.buttons,
-            }));
+            const articleElements: Array<GenericTemplateElement> = articles.map(
+              (article) => ({
+                title: article.title,
+                subtitle: article.summary,
+                image_url: article.imageUrl,
+                default_action: {
+                  type: "web_url",
+                  url: article.articleUrl,
+                  webview_height_ratio: options?.webview_height_ratio || "tall",
+                },
+                buttons: article.buttons,
+              })
+            );
+
+            const payload: GenericTemplatePayload = {
+              template_type: "generic",
+              elements: articleElements,
+              image_aspect_ratio: options?.image_aspect_ratio,
+            };
 
             const messageRequest: SendMessageRequest = {
               recipient: { id: recipientId },
@@ -1089,11 +1190,7 @@ export class MessagingService extends Effect.Service<MessagingService>()(
               message: {
                 attachment: {
                   type: AttachmentType.TEMPLATE,
-                  payload: {
-                    template_type: "generic",
-                    elements: articleElements,
-                    image_aspect_ratio: options?.image_aspect_ratio,
-                  },
+                  payload,
                 },
               },
             };
